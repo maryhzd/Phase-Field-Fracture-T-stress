@@ -2,6 +2,9 @@
 #Hakimzadeh, M., Agrawal, V., Dayal, K., & Mora-Corral, C. (2022). 
 #Phase-field finite deformation fracture with an effective energy for regularized crack face contact. 
 #Journal of the Mechanics and Physics of Solids, 167, 104994.
+
+#Maryam Hakimzadeh
+#Contact: mhakimz1@jhu.edu , maryamhakimzadeh1994@gmail.com
       
 
 
