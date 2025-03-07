@@ -6,8 +6,6 @@
 #Maryam Hakimzadeh
 #Contact: mhakimz1@jhu.edu , maryamhakimzadeh1994@gmail.com
       
-
-
 from dolfin import *
 parameters["form_compiler"]["cpp_optimize"] = True
 parameters["form_compiler"]["representation"] = "uflacs"
