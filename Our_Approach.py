@@ -1,3 +1,10 @@
+# If using this code, please cite:
+#Hakimzadeh, M., Agrawal, V., Dayal, K., & Mora-Corral, C. (2022). 
+#Phase-field finite deformation fracture with an effective energy for regularized crack face contact. 
+#Journal of the Mechanics and Physics of Solids, 167, 104994.
+      
+
+
 from dolfin import *
 parameters["form_compiler"]["cpp_optimize"] = True
 parameters["form_compiler"]["representation"] = "uflacs"
