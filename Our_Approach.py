@@ -191,15 +191,6 @@ TotalEnergy_file = File ("./Result/total_energy.pvd")
 ElasticEnergy_file = File ("./Result/elastic_energy.pvd")
 Stress_file = File("./Result/stress.pvd")
 
-
-fileUU = File("./ResultsDir/displacement2.pvd")
-
-parameters['allow_extrapolation'] = False
-mesh2 = RectangleMesh.create([Point(-0.5, -0.5),Point(0.5, 0.5)],[160,160],CellType.Type.quadrilateral)
-V2 = VectorFunctionSpace(mesh2, "CG", 1)
-
-
-
             
 t = 0
 u_r = 1
@@ -247,7 +238,4 @@ while t<= 0.03:
             stress.rename("stress", "stress")
             Stress_file << stress
             
-            u2 = project(unew, V2)
-            u2.rename("u2","displacement2")
-            fileUU << u2
 print ('Simulation completed')
