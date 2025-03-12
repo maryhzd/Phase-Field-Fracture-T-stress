@@ -10,60 +10,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from dolfin import Point
-#mesh = Mesh('mesh.xml')
-
-# set_log_active(False)
-# #==================================
-# # mesh (concident nodes) for the crack
-# #===================================
-# nx = 1
-# ny = 1
-# num = 1
-# mesh = Mesh()
-# editor = MeshEditor()
-# editor.open(mesh, "triangle", 2, 2)
-# editor.init_vertices(10)
-# editor.init_cells(8)
-
-# editor.add_vertex(0, Point(0, 0.0))
-# editor.add_vertex(1, Point(0.5, 0.0))
-# editor.add_vertex(2, Point(0.5, 0.5))
-# editor.add_vertex(3, Point(0.0, 0.5))
-# editor.add_vertex(4, Point(-0.5, 0.5))
-# editor.add_vertex(5, Point(-0.5, 0.0))
-# editor.add_vertex(6, Point(-0.5, -0.5))
-# editor.add_vertex(7, Point(0.0, -0.5))
-# editor.add_vertex(8, Point(0.5, -0.5))
-# editor.add_vertex(9, Point(-0.5, 0.0))
-
-# editor.add_cell(0, [0, 1, 3])
-# editor.add_cell(1, [1, 2, 3])
-# editor.add_cell(2, [0, 3, 4])
-# editor.add_cell(3, [0, 4, 5])
-# editor.add_cell(4, [0, 9, 7])
-# editor.add_cell(5, [6, 7, 9])
-# editor.add_cell(6, [0, 7, 8])
-# editor.add_cell(7, [0, 8, 1])
-
-
-# editor.close()
-# #--------------------------------------
-# # change num_refine for mesh refinement
-# #--------------------------------------
-# num_refine = 5
-# h=0.5**num_refine
-# for i in range(num_refine):
-#     mesh=refine(mesh)
-# print ("number of unknown",mesh.num_vertices() )
-# print ("number of elements",mesh.num_cells() )
-# plot(mesh)
-#interactive()
-
-# ---------------------------
-# get top boundary nodes for Reaction force 
-# calculations
-#----------------------------
-
 mesh = RectangleMesh(Point(-0.5,-0.5),Point(0.5,0.5), 40, 40)
 cell_markers = MeshFunction("bool", mesh,2)
 cell_markers.set_all(False)
@@ -117,16 +63,7 @@ for c in It_mesh:
      for v in vertices(c):
          a.append(v.midpoint().x())
          b.append(v.midpoint().y())
-         
-dd = num_nem(a)
-da = num_nem(b)
-#------------------
-# check node number 
-#------------------
-print (dd)
-print (da)
-
-
+ 
 #------------------------------------------------
 #          Define Space
 #------------------------------------------------
@@ -250,22 +187,12 @@ ut = 1
 # Data from Ref: Ambati et. al.
 #------------------------------------------
 
-
-Crack_file = File ("./Result/crack.pvd")
-Displacement_file = File ("./Result/displacement.pvd")
-
-
-fileUU = File("./ResultsDir/displacement2.pvd")
-
-parameters['allow_extrapolation'] = False
-mesh2 = RectangleMesh.create([Point(-0.5, -0.5),Point(0.5, 0.5)],[30,30],CellType.Type.quadrilateral)
-V2 = VectorFunctionSpace(mesh2, "CG", 1)
-
+Crack_file = File ("./Results/crack.pvd")
+Displacement_file = File ("./Results/displacement.pvd")
 
 TS = TensorFunctionSpace(mesh, "DG", 0)
 stress_plot = Function(TS)
 filestress = File("./Results/stress.pvd")
-
 
 f = open('Tension.txt', 'a')
 while t<= 0.012:
@@ -299,47 +226,16 @@ while t<= 0.012:
             
             Displacement_file << u
             
-            u2 = project(u, V2)
-            u2.rename("u2","displacement2")
-            fileUU << u2
-            
             stress_plot = project(sigma(u), TS)
             stress_plot.rename("stress", "stress")
             filestress  << stress_plot
-                
-                
-                
+               
             print ('solution converges after:', iter)
  
             ux,uy = split(u)
             plot(ux,key = 'ux',title = 'u_dispx')
             plot(uy,key ='uy',title = 'u_dispy')
             plot(p,range_min = 0.,range_max = 1.,key = 'phi',title = 'phi%.4f'%(t))
-            
-            # calculate reaction force
-            # k_matx=assemble(E_du)
-            # u_vec=u.vector()
-            # F_vec=k_matx*u_vec
-            # Ft_func=Function(W,F_vec)
-            # f_allY=[]
-            # for k in dd:
-            #     fy=Ft_func(k,0.5)
-            #     #print fy
-            #     fyt=fy[1]
-            #     #print fyt
-            #     f_allY.append(fyt)
-            #     #print f_allY
-            #     f_allY_s=f_allY
-            #     #print f_allY
-            #     #f_y_u.append(f_allY_s)
-            # b=sum(f_allY_s)
-            # print (b)
-            # plt.scatter(t,(b*1e-3))
-            # plt.pause(0.05)
-            # a = [(t,b*1e-3)]
-            # np.savetxt(f,a)
-            
-
             
 	    	    
     t+=deltaT
