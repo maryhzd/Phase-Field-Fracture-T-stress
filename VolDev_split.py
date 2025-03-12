@@ -12,7 +12,6 @@
 
 # Preliminaries and mesh
 from dolfin import *
-# mesh = Mesh('mesh.xml')
 
 mesh = RectangleMesh(Point(-0.5,-0.5),Point(0.5,0.5), 40, 40)
 cell_markers = MeshFunction("bool", mesh,2)
@@ -43,13 +42,6 @@ WW = FunctionSpace(mesh, 'DG', 0)
 p, q = TrialFunction(V), TestFunction(V)
 u, v = TrialFunction(W), TestFunction(W)
 
-# Introduce manually the material parameters
-# Gc =  2.7
-# l = 0.015
-# lmbda = 121.1538e3
-# mu = 80.7692e3
-
-
 Gc, l, lmbda, mu, eta_eps =  1.721/ (100e3), 0.015, 0, 1, 1.e-3
 
 # Constituive functions
@@ -78,7 +70,6 @@ u_Rx = Expression("t", t=0.0, degree=1)
 u_Lx = Expression("-t", t=0.0, degree=1)
 
 
-
 bc_bot = DirichletBC(W.sub(1), Constant(0.0), bot)
 bc_top = DirichletBC(W.sub(1), Constant(0.0), top)
 bc_right = DirichletBC(W.sub(0), u_Rx, right)
@@ -104,26 +95,18 @@ p_phi = LinearVariationalProblem(lhs(E_phi), rhs(E_phi), pnew, bc_phi)
 solver_disp = LinearVariationalSolver(p_disp)
 solver_phi = LinearVariationalSolver(p_phi)
 
-
-fileUU = File("./ResultsDir/displacement2.pvd")
-
-parameters['allow_extrapolation'] = False
-mesh2 = RectangleMesh.create([Point(-0.5, -0.5),Point(0.5, 0.5)],[30,30],CellType.Type.quadrilateral)
-V2 = VectorFunctionSpace(mesh2, "CG", 1)
-
-
 TS = TensorFunctionSpace(mesh, "DG", 0)
 stress_plot = Function(TS)
-filestress = File("./ResultsDir/stress.pvd")
+
 
 # Initialization of the iterative procedure and output requests
 t = 0
 u_r = 1
 deltaT  = 1e-3
 tol = 1e-3
-conc_f = File ("./ResultsDir/phi.pvd")
-conc_u = File ("./ResultsDir/disp.pvd")
-fname = open('ForcevsDisp.txt', 'w')
+conc_f = File ("./Results/phi.pvd")
+conc_u = File ("./Results/disp.pvd")
+filestress = File("./Results/stress.pvd")
 
 # Staggered scheme
 while t<= 0.012:
@@ -155,16 +138,6 @@ while t<= 0.012:
             if round(t*1e4) % 10 == 0:
                 conc_f << pnew
                 conc_u << unew
-
-                Traction = dot(sigma(unew),n)
-                fy = Traction[1]*ds(1)
-                fname.write(str(t*u_r) + "\t")
-                fname.write(str(assemble(fy)) + "\n")
-                
-                u2 = project(unew, V2)
-                u2.rename("u2","displacement2")
-                fileUU << u2
-                
                 stress_plot = project(sigma(unew), TS)
                 stress_plot.rename("stress", "stress")
                 filestress  << stress_plot
