@@ -194,7 +194,7 @@ TS = TensorFunctionSpace(mesh, "DG", 0)
 stress_plot = Function(TS)
 filestress = File("./Results/stress.pvd")
 
-f = open('Tension.txt', 'a')
+
 while t<= 0.012:
     # if t >=5e-3:
     #     deltaT = 1e-5
@@ -221,9 +221,7 @@ while t<= 0.012:
         if err < toll:
             uconv.assign(u)
             phiconv.assign(p)
-            
             Crack_file << p
-            
             Displacement_file << u
             
             stress_plot = project(sigma(u), TS)
@@ -231,11 +229,6 @@ while t<= 0.012:
             filestress  << stress_plot
                
             print ('solution converges after:', iter)
- 
-            ux,uy = split(u)
-            plot(ux,key = 'ux',title = 'u_dispx')
-            plot(uy,key ='uy',title = 'u_dispy')
-            plot(p,range_min = 0.,range_max = 1.,key = 'phi',title = 'phi%.4f'%(t))
             
 	    	    
     t+=deltaT
