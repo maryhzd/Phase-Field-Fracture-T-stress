@@ -1,15 +1,7 @@
-# --------------------------------
-#https://home.iitm.ac.in/ratna/codes/phasefield/phasefield/Tension%20Test/Tension.py
-# purpose: phase field for fracture
-# Tension test 2D
-#  Hirshikesh, Sundarajan Natarajan, Ratna Kumar Annabatutla 
-#  IITM, Aug 2017
-#-------------------------------------
 from dolfin import *
 import numpy as np
 import matplotlib.pyplot as plt
 
-from dolfin import Point
 mesh = RectangleMesh(Point(-0.5,-0.5),Point(0.5,0.5), 40, 40)
 cell_markers = MeshFunction("bool", mesh,2)
 cell_markers.set_all(False)
@@ -32,206 +24,141 @@ for cell in cells(mesh):
     if abs(p[1]) < 0.4:
         cell_markers[cell] = True
 # mesh = refine(mesh, cell_markers)
-
-
-def num_nem(seq, idfun=None): 
-   # order preserving
-   if idfun is None:
-       def idfun(x): return x
-   seen = {}
-   result = []
-   for item in seq:
-       marker = idfun(item)
-       if marker in seen: continue
-       seen[marker] = 1
-       result.append(item)
-   return result
-class TopBoundary(SubDomain):
-        def inside(self, x, on_boundary):
-                tol = 1E-14
-                return on_boundary and near(x[1], 0.5, tol)
-
-topBoundary = TopBoundary()
-ff = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
-
-topBoundary.mark(ff,1)
-
-It_mesh = SubsetIterator(ff, 1)
-a = []
-b = []
-for c in It_mesh:
-     for v in vertices(c):
-         a.append(v.midpoint().x())
-         b.append(v.midpoint().y())
- 
-#------------------------------------------------
-#          Define Space
-#------------------------------------------------
-
-V = FunctionSpace(mesh,'CG',1)
-W = VectorFunctionSpace(mesh,'CG',1)
-
-p , q = TrialFunction(V), TestFunction(V)
-u , v = TrialFunction(W), TestFunction(W)
-#------------------------------------------------
-#           Parameters
-#------------------------------------------------
-l_fac = 2
-hm = mesh.hmin()
-l_o = l_fac*hm
-print (l_o)
-
-
+# Define Space
+V = FunctionSpace(mesh, 'CG', 1)
+W = VectorFunctionSpace(mesh, 'CG', 1)
+WW = FunctionSpace(mesh, 'DG', 0)
+p, q = TrialFunction(V), TestFunction(V)
+u, v = TrialFunction(W), TestFunction(W)
 
 
 Gc, l, lmbda, mu, eta_eps =  1.721/ (100e3), 0.015, 0, 1, 1.e-3
 
-
-#------------------------------------------------
-#           Classes
-#------------------------------------------------
-
+# Constituive functions
 def epsilon(u):
     return sym(grad(u))
 def sigma(u):
-    return 2.0*mu*epsilon(u) + lmbda*tr(epsilon(u))*Identity(2)
-def en_dens(u):
-    str_ele = 0.5*(grad(u) + grad(u).T)
-    IC = tr(str_ele)
-    ICC = tr(str_ele * str_ele)
-    return (0.5*lmbda*IC**2) + mu*ICC
+    return 2.0*mu*epsilon(u)+lmbda*tr(epsilon(u))*Identity(len(u))
 
-def eps(u):
-    return sym(grad(u))
+def sigma_plotting(u, p):
+    return ( (1-p)**2)* (2.0*mu*epsilon(u)+lmbda*tr(epsilon(u))*Identity(len(u)))    
 
-kn = lmbda + mu
-def hist(u):
-    return 0.5*kn*( 0.5*(tr(eps(u)) + abs(tr(eps(u)))) )**2 + mu*tr(dev(eps(u))*dev(eps(u)))
+def trace_eps_positive_square(eps):
+    
+    mean_eps = 0.5 * (eps[0,0] + eps[1,1])
+    det_eps = eps[0,0] * eps[1,1] - eps[0,1] * eps[1,0]
+
+    eigen_val_1 = mean_eps + sqrt(mean_eps**2 - det_eps)
+    eigen_val_2 = mean_eps - sqrt(mean_eps**2 - det_eps)
+    #print('eigen_val_1 : ', eigen_val_1)
+    eig_1_pos = 0.5 * (eigen_val_1 + abs(eigen_val_1))
+    eig_2_pos = 0.5 * (eigen_val_2 +abs(eigen_val_2))
+    return eig_1_pos**2 + eig_2_pos**2
 
 
+def psi(u):
+    eps = epsilon(u)
+    tr_eps = tr(eps)
+    first_term = 0.5 * lmbda * ( 0.5* (tr_eps + abs(tr_eps)))**2
+    tr_eps_pos_square = trace_eps_positive_square(eps)
+    second_term = mu * tr_eps_pos_square
+    return first_term + second_term	
 
-#---------------------------
+
+def H(uold,unew,Hold):
+    return conditional(lt(psi(uold),psi(unew)),psi(unew),Hold)
+		
 # Boundary conditions
-#---------------------------
+top = CompiledSubDomain("near(x[1], 0.5) && on_boundary")
+bot = CompiledSubDomain("near(x[1], -0.5) && on_boundary")
+
+left = CompiledSubDomain("near(x[0], -0.5) && on_boundary")
+right = CompiledSubDomain("near(x[0], 0.5) && on_boundary")
 
 
-class top(SubDomain):
-    def inside(self,x,on_boundary):
-        tol = 1e-10
-        return abs(x[1]-0.5) < tol and on_boundary
+def Crack(x):
+    return abs(x[1]) < 10e-03 and x[0] <= 0
 
-class bottom(SubDomain):
-    def inside(self,x,on_boundary):
-        tol = 1e-10
-        return abs(x[1]+0.5) < tol and on_boundary
-class Middle(SubDomain): 
-    def inside(self,x,on_boundary):
-        tol = 1e-3
-        return abs(x[1]) < 10e-3 and abs(x[0]) <= 0.25
-    
-class right(SubDomain):
-    def inside(self,x,on_boundary):
-        tol = 1e-10
-        return abs(x[0]-0.5) < tol and on_boundary  
-    
-    
-class left(SubDomain):
-    def inside(self,x,on_boundary):
-        tol = 1e-10
-        return abs(x[0]+0.5) < tol and on_boundary     
-
-middle = Middle()    
-Top = top()
-Bottom = bottom()
-Right = right()
-Left = left()
-
-
-u_Rx = Expression("t", t=0.0, degree=1)
+u_Tx = Expression("t", t=0.0, degree=1)
 u_Lx = Expression("-t", t=0.0, degree=1)
 
 
-bc_bot = DirichletBC(W.sub(1), Constant(0.0), Bottom)
-bc_top = DirichletBC(W.sub(1), Constant(0.0), Top)
-bc_right = DirichletBC(W.sub(0), u_Rx, Right)
-bc_left = DirichletBC(W.sub(0), u_Lx, Left)
-
-bc_u = [bc_bot , bc_top, bc_right, bc_left]
-
-bc_phi = [DirichletBC(V,Constant(1.0),middle)]
-
-#----------------------------
-# Define variational form
-#----------------------------
-uold, unew, uconv = Function(W), Function(W), Function(W)
-phiold, phiconv = Function(V), Function(V)
-E_du =  ( pow((1-phiold),2) + 1e-6)*inner(grad(v), sigma(u))*dx
+bc_bot = DirichletBC(W.sub(1), Constant(0.0), bot)
+bc_bot1 = DirichletBC(W.sub(0), Constant(0.0), bot)
+bc_top = DirichletBC(W.sub(0), u_Tx, top)
 
 
-E_phi = ( Gc*l_o*inner(grad(p),grad(q))+\
-            ((Gc/l_o) + 2.0*hist(unew))*inner(p,q)-\
-            2.0*hist(unew)*q)*dx
-    
-u = Function(W)
-p = Function(V)
-p_disp = LinearVariationalProblem(lhs(E_du),rhs(E_du),u,bc_u)
-p_phi = LinearVariationalProblem(lhs(E_phi),rhs(E_phi),p, bc_phi)
+bc_u = [bc_bot , bc_top, bc_bot1]
 
+bc_phi = [DirichletBC(V, Constant(1.0), Crack)]
+boundaries = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
+boundaries.set_all(0)
+top.mark(boundaries,1)
+ds = Measure("ds")(subdomain_data=boundaries)
+n = FacetNormal(mesh)
+
+# Variational form
+unew, uold = Function(W), Function(W)
+pnew, pold, Hold = Function(V), Function(V), Function(V)
+E_du = ((1.0-pold)**2)*inner(grad(v),sigma(u))*dx
+E_phi = (Gc*l*inner(grad(p),grad(q))+((Gc/l)+2.0*H(uold,unew,Hold))\
+            *inner(p,q)-2.0*H(uold,unew,Hold)*q)*dx
+p_disp = LinearVariationalProblem(lhs(E_du), rhs(E_du), unew, bc_u)
+p_phi = LinearVariationalProblem(lhs(E_phi), rhs(E_phi), pnew, bc_phi)
 solver_disp = LinearVariationalSolver(p_disp)
 solver_phi = LinearVariationalSolver(p_phi)
-t = 0
-max_load = 0.007
-deltaT  = 1e-3
-ut = 1
-# -----------------------------------------
-# Data from Ref: Ambati et. al.
-#------------------------------------------
-
-Crack_file = File ("./Results/crack.pvd")
-Displacement_file = File ("./Results/displacement.pvd")
 
 TS = TensorFunctionSpace(mesh, "DG", 0)
-stress_plot = Function(TS)
-filestress = File("./Results/stress.pvd")
 
+stress_plotting = Function(TS)
+filestress_plotting = File("./Results/stress_plotting.pvd")
 
+# Initialization of the iterative procedure and output requests
+t = 0
+u_r = 1
+deltaT  = 1e-3
+tol = 1e-3
+conc_f = File ("./Results/phi.pvd")
+conc_u = File ("./Results/disp.pvd")
+
+# Staggered scheme
 while t<= 0.012:
-    # if t >=5e-3:
-    #     deltaT = 1e-5
-    u_Rx.t=t*ut
-    u_Lx.t=t*ut
-    uold.assign(uconv)
-    phiold.assign(phiconv)
-    iter = 1
-    toll = 1e-3
+    t += deltaT
+    # if t >=0.7:
+    #     deltaT = 0.0001
+    
+    u_Tx.t=t
+    u_Lx.t=t
+    iter = 0
     err = 1
 
-    while err > toll:
+    while err > tol:
+        iter += 1
         solver_disp.solve()
-        unew.assign(u)
         solver_phi.solve()
+        err_u = errornorm(unew,uold,norm_type = 'l2',mesh = None)
+        err_phi = errornorm(pnew,pold,norm_type = 'l2',mesh = None)
+        err = max(err_u,err_phi)
+        
+        uold.assign(unew)
+        pold.assign(pnew)
+        Hold.assign(project(psi(unew), WW))
 
-        err_u = errornorm(u,uold, norm_type = 'l2', mesh = None)
-        err_phi = errornorm(p,phiold, norm_type = 'l2', mesh = None)
-        err = max(err_u, err_phi)
-        print ('iter', iter,'error', err)
-        uold.assign(u)
-        phiold.assign(p)
-        iter = iter+1
-        if err < toll:
-            uconv.assign(u)
-            phiconv.assign(p)
-            Crack_file << p
-            Displacement_file << u
-            
-            stress_plot = project(sigma(u), TS)
-            stress_plot.rename("stress", "stress")
-            filestress  << stress_plot
-               
-            print ('solution converges after:', iter)
-            
-	    	    
-    t+=deltaT
-            
+        if err < tol:
+		
+            print ('Iterations:', iter, ', Total time', t)
 
-print ('Simulation Done with no error :)')
+            if round(t*1e4) % 10 == 0:
+                conc_f << pnew
+                conc_u << unew
+                
+                stress_plotting = project(sigma_plotting(unew, pnew), TS)
+                stress_plotting.rename("stress_plotting", "stress")
+                filestress_plotting  << stress_plotting
+
+                p = plot(pnew, colorbar = 'False')
+                plt.colorbar(p)
+                plt.savefig("pnew.eps", format = 'eps')
+
+
+print ('Simulation completed') 
