@@ -51,25 +51,20 @@ bot = CompiledSubDomain("near(x[1], -0.5) && on_boundary")
 left = CompiledSubDomain("near(x[0], -0.5) && on_boundary")
 right = CompiledSubDomain("near(x[0], 0.5) && on_boundary")
 
-u_Rx = Expression("t", t=0.0, degree=1)
+u_Tx = Expression("t", t=0.0, degree=1)
 u_Lx = Expression("-t", t=0.0, degree=1)
 
-
 bc_bot = DirichletBC(W.sub(1), Constant(0.0), bot)
-bc_top = DirichletBC(W.sub(1), Constant(0.0), top)
-bc_right = DirichletBC(W.sub(0), u_Rx, right)
-bc_left = DirichletBC(W.sub(0), u_Lx, left)
-
-bc_u = [bc_bot , bc_top, bc_right, bc_left]
+bc_bot1 = DirichletBC(W.sub(0), Constant(0.0), bot)
+bc_top = DirichletBC(W.sub(0), u_Tx, top)
 
 
-
-
+bc_u = [bc_bot , bc_top, bc_bot1]
 bc_phi = []
 
 class InitialCondition(UserExpression):
     def eval_cell(self, value, x, ufl_cell):      
-        if abs(x[1]) < 10e-03 and abs(x[0]) <= 0.25:
+        if abs(x[1]) < 10e-03 and x[0] <= 0:
             value[0] = 0
             value[1] = 1 
         else:
@@ -201,8 +196,8 @@ while t<= 0.03:
     # if t>= 0.0025:
     #     deltaT = 1.e-5  
     t += deltaT
-    u_Rx.t= t
-    u_Lx.t= t
+    u_Tx.t= t
+
     iter = 0
     err = 1
     while err > tol:
